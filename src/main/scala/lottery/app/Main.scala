@@ -27,7 +27,25 @@ object Main extends App {
 
   val id = LotteryId.generate()
 
-  println("Nothing there yet!")
+  // ---------------------------------------------
+  // aggregate config - write model
+  val lotteryService =
+    config {
+      aggregate[Lottery](Lottery.behavior).withAssignedId
+    }
+
+  // ---------------------------------------------
+  // create aggregate
+  val result =
+    for {
+      _ <- lotteryService.newInstance(id, CreateLottery("ScalaX")).result()
+      _ <- lotteryService.update(id)(AddParticipant("John")).result()
+      _ <- lotteryService.update(id)(AddParticipant("Paul")).result()
+      _ <- lotteryService.update(id)(AddParticipant("Joe")).result()
+      res <- lotteryService.update(id)(Run).result()
+    } yield res
+
+  waitAndPrint(result)
 
   Thread.sleep(1000)
   system.terminate()

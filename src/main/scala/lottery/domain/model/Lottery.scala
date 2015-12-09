@@ -2,6 +2,7 @@ package lottery.domain.model
 
 import java.time.OffsetDateTime
 import java.util.UUID
+import scala.IllegalArgumentException
 import scala.language.reflectiveCalls
 import io.funcqrs._
 import io.funcqrs.dsl.BindingDsl
@@ -113,6 +114,44 @@ object Lottery {
 
     import io.funcqrs.dsl.BindingDsl.api._
 
-    Behavior.empty
+    whenCreating {
+
+      // creational command and event
+      command { cmd: CreateLottery => LotteryCreated(cmd.name, metadata(id, cmd)) }
+        .action { evt => Lottery(name = evt.name, id = id) }
+
+    } whenUpdating { lottery =>
+
+      // add participant
+      command { cmd: AddParticipant =>
+        if (lottery.hasParticipant(cmd.name))
+          Failure(new IllegalArgumentException(s"Participant ${cmd.name} already added!"))
+        else
+          Success(ParticipantAdded(cmd.name, Lottery.metadata(id, cmd)))
+      } action { evt =>
+        lottery.addParticipant(evt.name)
+      }
+
+    } whenUpdating { lottery =>
+      command { cmd: RemoveParticipant => ParticipantRemoved(cmd.name, metadata(id, cmd)) }
+        .action { evt => lottery.removeParticipant(evt.name) }
+
+    } whenUpdating { lottery =>
+
+      // Select a winner when run!
+      command { cmd: Run.type =>
+        lottery.selectParticipant().map { winner => WinnerSelected(winner, metadata(id, cmd)) }
+      } action { evt =>
+        lottery.copy(winner = Option(evt.winner))
+      }
+
+    } whenUpdating { lottery =>
+
+      command.multipleEvents { cmd: Reset.type =>
+        lottery.participants.map { name => ParticipantRemoved(name, metadata(id, cmd)) }
+      } action { evt =>
+        lottery.removeParticipant(evt.name)
+      }
+    }
   }
 }
