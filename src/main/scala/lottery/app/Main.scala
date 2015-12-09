@@ -17,7 +17,7 @@ import java.util.UUID
 import scala.util.{Failure, Success}
 
 
-object Main extends App { 
+object Main extends App {
   implicit def timeout: Timeout = Timeout(1.second)
 
   val system = ActorSystem("FunCQRS")
@@ -35,6 +35,17 @@ object Main extends App {
     }
 
   // ---------------------------------------------
+  // projection config - read model
+  val lotteryViewRepo = new LotteryViewRepo
+  config {
+    projection(
+      sourceProvider = new LevelDbTaggedEventsSource(Lottery.tag),
+      projection = new LotteryViewProjection(lotteryViewRepo),
+      name = "LotteryProjection"
+    )
+  }
+
+  // ---------------------------------------------
   // create aggregate
   val result =
     for {
@@ -46,6 +57,12 @@ object Main extends App {
     } yield res
 
   waitAndPrint(result)
+  Thread.sleep(5000)
+
+  // ---------------------------------------------
+  // fetch read model
+  val viewResult = lotteryViewRepo.find(id)
+  waitAndPrint(viewResult)
 
   Thread.sleep(1000)
   system.terminate()
