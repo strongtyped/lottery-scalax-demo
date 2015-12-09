@@ -2,7 +2,7 @@ package lottery.app
 
 
 import akka.actor.ActorSystem
-import io.funcqrs.akka.{AggregateServiceWithAssignedId, FunCQRS}
+import io.funcqrs.akka.FunCQRS
 import lottery.domain.model.Lottery
 import lottery.domain.model.LotteryId
 import lottery.domain.model.LotteryProtocol._
@@ -27,40 +27,7 @@ object Main extends App {
 
   val id = LotteryId.generate()
 
-  //----------------------------------------------------------------------
-  // Command side 
-  val lotteryService = 
-    config {
-      aggregate[Lottery](Lottery.behavior).withAssignedId
-    }
-
-  //----------------------------------------------------------------------
-  // Query side
-  val lotteryViewRepo = new LotteryViewRepo
-
-  config {
-    projection(
-      sourceProvider = new LevelDbTaggedEventsSource(Lottery.tag),
-      projection = new LotteryViewProjection(lotteryViewRepo),
-      name = "LotteryProjection"
-    )
-  }
-
-
-  val resultFut =
-    for {
-      _ <- lotteryService.newInstance(id, CreateLottery("ScalaX")).result()
-      _ <- lotteryService.update(id)(AddParticipant("John")).result()
-      _ <- lotteryService.update(id)(AddParticipant("Paul")).result()
-      _ <- lotteryService.update(id)(AddParticipant("Joe")).result()
-      res <- lotteryService.update(id)(Run).result()
-    } yield res
-
-  waitAndPrint(resultFut)
-  Thread.sleep(2000)
-
-  val viewResult = lotteryViewRepo.find(id)
-  waitAndPrint(viewResult)
+  println("Nothing there yet!")
 
   Thread.sleep(1000)
   system.terminate()

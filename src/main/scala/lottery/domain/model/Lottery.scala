@@ -106,53 +106,13 @@ object Lottery {
     LotteryMetadata(id, cmd.id, tags = Set(tag))
   }
 
-  def behavior(id: LotteryId): Behavior[Lottery] = behaviorImpl(id)
-
-  private def behaviorImpl(id: LotteryId): Behavior[Lottery] = {
+  def behavior(id: LotteryId): Behavior[Lottery] = {
 
     val dsl = new BindingDsl[Lottery]
     import dsl.api._
 
     import io.funcqrs.dsl.BindingDsl.api._
 
-    whenCreating {
-      // creational command and event
-      command { cmd: CreateLottery => LotteryCreated(cmd.name, metadata(id, cmd)) }
-        .action { evt => Lottery(name = evt.name, id = id) }
-
-      // updates
-    } whenUpdating { lottery =>
-
-      // Select a winner when run!
-      command { cmd: Run.type =>
-        lottery.selectParticipant().map { winner => WinnerSelected(winner, metadata(id, cmd)) }
-      } action { evt =>
-        lottery.copy(winner = Option(evt.winner))
-      }
-
-    } whenUpdating { lottery =>
-      // add participant
-      command { cmd: AddParticipant =>
-        if (lottery.hasParticipant(cmd.name))
-          Failure(new IllegalArgumentException(s"Participant ${cmd.name} already added!"))
-        else
-          Success(ParticipantAdded(cmd.name, Lottery.metadata(id, cmd)))
-      } action { evt =>
-        lottery.addParticipant(evt.name)
-      }
-
-    } whenUpdating { lottery =>
-      command { cmd: RemoveParticipant => ParticipantRemoved(cmd.name, metadata(id, cmd)) }
-        .action { evt => lottery.removeParticipant(evt.name) }
-
-    } whenUpdating { lottery =>
-
-      command.multipleEvents { cmd: Reset.type =>
-        lottery.participants.map { name => ParticipantRemoved(name, metadata(id, cmd)) }
-      } action { evt =>
-        lottery.removeParticipant(evt.name)
-      }
-    }
-
+    Behavior.empty
   }
 }
